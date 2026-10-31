@@ -1,4 +1,5 @@
-# Reviewer's end-to-end check (copy into tests/hermes beside the proof) that a typed answer to a pending clarify still resolves it
+# A typed answer to a pending Hermes clarify question, sent in the bot's thread, still resolves it and starts no agent turn.
+# Hermes matches that text after pre_gateway_dispatch, so quiet-reply must not change it. Run by scripts/prove.sh.
 import asyncio
 from unittest.mock import AsyncMock, patch
 

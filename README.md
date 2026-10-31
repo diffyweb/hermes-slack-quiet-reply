@@ -21,7 +21,7 @@ The line looks like this:
 [Slack message ts 1700000000.000400 in C12345678; it tags or names you]
 ```
 
-DMs, @-mentions, messages naming the agent, slash commands and reaction triggers still get an answer, exactly as before. Every Slack message the agent reads gets the line, except slash commands, commands, reaction triggers and the message that answers one of Hermes's own pending prompts (a clarify question, a slash-command confirmation, an /update prompt). Hermes matches the typed answer to those as written, so quiet-reply leaves that text alone.
+DMs, @-mentions, messages naming the agent, slash commands and reaction triggers still get an answer, exactly as before. Every Slack message the agent reads gets the line, except Slack slash commands (`/hermes …`), messages Hermes reads as a command (`/new`, a typed `restart`), reaction triggers, and any message in a conversation where one of Hermes's own prompts waits for an answer (a dangerous-command approval, a clarify question, a slash-command confirmation, an /update prompt). Hermes matches the typed answer to those as written, so quiet-reply leaves that text alone.
 
 ## Install
 
@@ -48,7 +48,7 @@ Line numbers are Hermes at `bf0203a794`.
 
 quiet-reply registers one callback on Hermes's `pre_gateway_dispatch` hook. Hermes runs it once for each incoming message, before the turn (`website/docs/user-guide/features/hooks.md:1290-1325`, `gateway/run_inbound_hooks.py:81-112`). For a Slack message that isn't a slash command, a command or a reaction trigger, the callback does two things.
 
-**Not documented, the text.** It sets `event.text` directly and returns `None`, so another plugin's skip or rewrite on the same message still counts. The hook's documented way to change a message is a `rewrite` action; the docs don't say a plugin may write the event. A line of the same shape already in someone's message is dropped first, so a copy of it is never taken for the real one.
+**Not documented, the text.** It sets `event.text` directly and returns `None`, so another plugin's skip or rewrite on the same message still counts. The hook's documented way to change a message is a `rewrite` action; the docs don't say a plugin may write the event. A line of the same shape already in someone's message is dropped whenever quiet-reply adds its own line. Another plugin on `pre_gateway_dispatch` that runs after quiet-reply sees the changed text, and one that runs before and returns a rewrite drops the line.
 
 **Not documented, the flag.** It sets `event.reply_expected = False` where Hermes's Slack adapter left it `None`. The field itself is documented: "Was this message addressed to this bot? False lets a bare silence marker stand" (`gateway/platforms/event.py:100-103`). The hook's docs don't say a plugin may change it.
 
@@ -61,7 +61,8 @@ quiet-reply registers one callback on Hermes's `pre_gateway_dispatch` hook. Herm
 
 - If the callback raises, Hermes logs it and carries on (`hermes_cli/plugins_dispatch.py:567-571`). Both of quiet-reply's writes (`reply_expected` and `text`) come last, so a raise leaves the event as Hermes built it. The worst case is Hermes's warning on a thread reply, which is what you get without the plugin.
 - A Hermes upgrade that copies the event before the hook, works out `reply_expected` again after it, or renames it, would bring the warning back without any error. So rerun the proof after every Hermes upgrade.
-- A message that reaches a conversation while the agent is still answering the one before takes Hermes's busy path, which never runs the hook (`gateway/platforms/base.py:4106-4108`, `gateway/run_busy.py:909`). That message gets no last line, and a `[SILENT]` on it still draws the warning.
+- A message that arrives while the agent is still answering goes through the hook too and gets the line; Hermes then steers it into the running turn or queues it.
+- quiet-reply reads private Hermes internals to tell when a prompt of Hermes's own is waiting: `tools.approval`, `tools.clarify_gateway`, `tools.slash_confirm`, `GatewayRunner._session_key_for_source`, `_peek_session_state` and `persistent.update_prompt_pending`. If an upgrade moves one, quiet-reply stops adding the line (silence still works) and logs a warning from the `quiet_reply` logger; rerun the proof.
 
 ## Prove it on your Hermes
 
@@ -73,7 +74,8 @@ It copies Hermes at `COMMIT` (default: the commit above) from your checkout into
 
 - a "thanks" in the bot's thread is silent, with nothing posted, and the agent gets that reply's own ts;
 - DMs, tags (including "@Sam @bot can you two sync?"), the bot's name, reaction triggers and slash commands keep their `reply_expected`, and a `[SILENT]` there still gets the warning;
-- a typed answer to a pending clarify question still resolves it (`tests/hermes/test_zz_review_prompts.py`);
+- a typed answer to a pending clarify question still resolves it (`tests/hermes/test_zz_prompt_answers.py`), and so does a typed "yes" to a dangerous-command approval (`tests/hermes/test_zz_typed_approval.py`);
+- a reply that arrives while the agent is still answering still gets the line (`tests/hermes/test_zz_busy_reply.py`);
 - without the plugin enabled, the warning comes back.
 
 It then runs Hermes's own tests of the hook, silence markers, Slack's `reply_expected` and admission with quiet-reply's callback in every dispatch. `--suite` also runs Hermes's whole `tests/gateway` with and without the callback and fails on any test that fails only with it (slow; its logs stay in the folder it prints). Run it with the commit you're upgrading to before you upgrade.

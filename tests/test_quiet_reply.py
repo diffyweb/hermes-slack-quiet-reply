@@ -2,7 +2,9 @@
 python3 -m unittest discover -s tests (or pytest). tests/hermes/ proves it on Hermes's own code."""
 import os
 import importlib.util
+import sys
 import unittest
+import unittest.mock
 from types import SimpleNamespace as NS
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -32,6 +34,34 @@ def run(e, pending=False):
 real_prompt_pending = plugin.prompt_pending
 
 
+class PromptPending(unittest.TestCase):
+    """prompt_pending against stand-ins for the Hermes modules it reads, one pending prompt kind at a time."""
+
+    def check(self, approval=False, clarify=False, confirm=False, update=False, boom=False):
+        approval_mod = NS(has_blocking_approval=lambda k: approval)
+        clarify_mod = NS(get_pending_for_session=lambda k, include_choice_prompts: clarify)
+        confirm_mod = NS(get_pending=lambda k: confirm)
+        mods = {"tools": NS(approval=approval_mod, clarify_gateway=clarify_mod, slash_confirm=confirm_mod),
+                "tools.approval": approval_mod, "tools.clarify_gateway": clarify_mod, "tools.slash_confirm": confirm_mod}
+
+        def peek(k):
+            if boom:
+                raise RuntimeError("moved")
+            return NS(persistent=NS(update_prompt_pending=update))
+        gw = NS(_session_key_for_source=lambda s: "k", _peek_session_state=peek)
+        with unittest.mock.patch.dict(sys.modules, mods):
+            return plugin.prompt_pending(event(), gw)
+
+    def test_each_kind_of_pending_prompt_is_seen(self):
+        self.assertFalse(self.check())
+        for kind in ("approval", "clarify", "confirm", "update"):
+            self.assertTrue(self.check(**{kind: True}), kind)
+
+    def test_a_moved_internal_leaves_the_text_alone_and_logs_a_warning(self):
+        with self.assertLogs("quiet_reply", "WARNING"):
+            self.assertTrue(self.check(boom=True))
+
+
 class QuietReply(unittest.TestCase):
     def test_a_plain_follow_up_may_go_silent_and_learns_its_ts(self):
         e = event()
@@ -52,7 +82,7 @@ class QuietReply(unittest.TestCase):
         self.assertEqual((tagged.reply_expected, dm.reply_expected, other.reply_expected), (True, True, False))
 
     def test_commands_reactions_and_other_platforms_are_left_alone(self):
-        for e in (event("what's open?", command="/hermes"), event("/status", kind="command"),
+        for e in (event("what's open?", command="/hermes"), event("/status", kind="command"), event("/restart"),
                   event("reaction:added:eyes", reply_expected=True, _hermes_reaction={"name": "eyes"}),
                   event(platform="discord"), event(ts="")):
             before = (e.text, e.reply_expected)

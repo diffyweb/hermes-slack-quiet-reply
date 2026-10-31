@@ -19,7 +19,7 @@ def pytest_collection_finish(session):
     async def ainvoke_hook(hook_name, **kwargs):
         results = await real(hook_name, **kwargs)
         if hook_name == "pre_gateway_dispatch" and kwargs.get("event") is not None:
-            extra = quiet_reply.on_dispatch(kwargs["event"])
+            extra = quiet_reply.on_dispatch(kwargs["event"], gateway=kwargs.get("gateway"))
             if extra is not None:
                 results = [*results, extra]
         return results
