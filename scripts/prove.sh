@@ -38,9 +38,9 @@ hermes_pytest -q -p quiet_reply_everywhere tests/gateway/test_pre_gateway_dispat
   tests/gateway/test_native_admission_metadata.py
 [ "$suite" = 1 ] || exit 0
 
-failures() {   # the tests that fail in one run of tests/gateway, sorted: Hermes's suite has failures of its own
+failures() {   # the tests that fail in one run of tests/gateway (not logged errors), sorted: Hermes's suite has its own
   # pytest exits 1 when any test fails; that's expected here, so the two lists are compared instead.
-  hermes_pytest -q -rfE "$@" tests/gateway 2>&1 | tee "$work/$label.log" | grep -E '^(FAILED|ERROR) ' | sed 's/ - .*//' | sort || true
+  hermes_pytest -q -rfE "$@" tests/gateway 2>&1 | tee "$work/$label.log" | grep -E '^(FAILED|ERROR) tests/' | sed 's/ - .*//' | sort -u || true
 }
 finished() {   # a run that stopped before its summary (a collection error, say) proves nothing either way
   grep -qE '[0-9]+ (passed|failed)' "$work/$label.log" || { echo "the $label run didn't finish: $work/$label.log" >&2; exit 1; }
