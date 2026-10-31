@@ -20,13 +20,14 @@ Line numbers are Hermes at bf0203a794 (0.22.5), the commit tests/hermes proves i
   reply_expected is still set.
 If this raises, Hermes logs it and carries on (hermes_cli/plugins_dispatch.py:567-571); both writes come last, so
 a raise leaves the event as Hermes built it. A message that arrives while the agent is still answering goes through
-this hook too (gateway/platforms/base.py:4059-4062); Hermes then steers it into the running turn or queues it.
+this hook too (gateway/platforms/base.py:4059-4062); Hermes then steers it, queues it or interrupts the running turn, as `display.busy_input_mode` says.
 Rerun scripts/prove.sh after every Hermes upgrade.
 """
 import logging
 import re
 
 log = logging.getLogger("quiet_reply")
+_warned = False   # log the moved-internal warning once per process, not once per Slack message
 
 FORGED = re.compile(r"^\[Slack message ts [^\]\n]*\][ \t]*$", re.M)
 
@@ -41,6 +42,7 @@ def note(event, raw):
 
 def prompt_pending(event, gateway):
     """Hermes matches a reply to its own approval, clarify, confirm or /update prompt as typed, after this hook."""
+    global _warned
     try:
         from tools import approval, clarify_gateway, slash_confirm
         key = gateway._session_key_for_source(event.source)
@@ -50,7 +52,9 @@ def prompt_pending(event, gateway):
                     or slash_confirm.get_pending(key)
                     or (state is not None and state.persistent.update_prompt_pending))
     except Exception:
-        log.warning("quiet-reply: can't read Hermes's pending prompts; adding no line (a Hermes upgrade may have moved an internal)", exc_info=True)
+        if not _warned:
+            _warned = True
+            log.warning("quiet-reply: can't read Hermes's pending prompts; adding no line (a Hermes upgrade may have moved an internal)", exc_info=True)
         return True   # can't tell: leave the text as Hermes built it
 
 

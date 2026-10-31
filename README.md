@@ -21,7 +21,7 @@ The line looks like this:
 [Slack message ts 1700000000.000400 in C12345678; it tags or names you]
 ```
 
-DMs, @-mentions, messages naming the agent, slash commands and reaction triggers still get an answer, exactly as before. Every Slack message the agent reads gets the line, except Slack slash commands (`/hermes …`), messages Hermes reads as a command (`/new`, a typed `restart`), reaction triggers, and any message in a conversation where one of Hermes's own prompts waits for an answer (a dangerous-command approval, a clarify question, a slash-command confirmation, an /update prompt). Hermes matches the typed answer to those as written, so quiet-reply leaves that text alone.
+DMs, @-mentions, messages naming the agent, slash commands and reaction triggers still get an answer, exactly as before. Every Slack message the agent reads gets the line, except Slack slash commands (`/hermes …`), messages Hermes reads as a command (`!new`, or `restart gateway` typed in a DM), reaction triggers, and any message in a conversation where one of Hermes's own prompts waits for an answer (a dangerous-command approval, a clarify question, a slash-command confirmation, an /update prompt). Hermes matches the typed answer to those as written, so quiet-reply leaves that text alone.
 
 ## Install
 
@@ -61,8 +61,8 @@ quiet-reply registers one callback on Hermes's `pre_gateway_dispatch` hook. Herm
 
 - If the callback raises, Hermes logs it and carries on (`hermes_cli/plugins_dispatch.py:567-571`). Both of quiet-reply's writes (`reply_expected` and `text`) come last, so a raise leaves the event as Hermes built it. The worst case is Hermes's warning on a thread reply, which is what you get without the plugin.
 - A Hermes upgrade that copies the event before the hook, works out `reply_expected` again after it, or renames it, would bring the warning back without any error. So rerun the proof after every Hermes upgrade.
-- A message that arrives while the agent is still answering goes through the hook too and gets the line; Hermes then steers it into the running turn or queues it.
-- quiet-reply reads private Hermes internals to tell when a prompt of Hermes's own is waiting: `tools.approval`, `tools.clarify_gateway`, `tools.slash_confirm`, `GatewayRunner._session_key_for_source`, `_peek_session_state` and `persistent.update_prompt_pending`. If an upgrade moves one, quiet-reply stops adding the line (silence still works) and logs a warning from the `quiet_reply` logger; rerun the proof.
+- A message that arrives while the agent is still answering goes through the hook too and gets the line; Hermes then steers it, queues it or interrupts the running turn, as `display.busy_input_mode` says.
+- quiet-reply reads private Hermes internals to tell when a prompt of Hermes's own is waiting: `tools.approval`, `tools.clarify_gateway`, `tools.slash_confirm`, `GatewayRunner._session_key_for_source`, `_peek_session_state` and `persistent.update_prompt_pending`. If an upgrade moves one, quiet-reply stops adding the line (silence still works) and logs one warning from the `quiet_reply` logger; rerun the proof.
 
 ## Prove it on your Hermes
 

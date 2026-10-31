@@ -58,8 +58,11 @@ class PromptPending(unittest.TestCase):
             self.assertTrue(self.check(**{kind: True}), kind)
 
     def test_a_moved_internal_leaves_the_text_alone_and_logs_a_warning(self):
-        with self.assertLogs("quiet_reply", "WARNING"):
+        plugin._warned = False
+        with self.assertLogs("quiet_reply", "WARNING") as cm:
             self.assertTrue(self.check(boom=True))
+            self.assertTrue(self.check(boom=True))
+        self.assertEqual(len(cm.records), 1)
 
 
 class QuietReply(unittest.TestCase):

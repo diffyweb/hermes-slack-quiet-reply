@@ -1,6 +1,6 @@
 [project]
 name = "hermes-slack-quiet-reply"
-version = "0.1.0"
+version = "0.1.1"
 description = "Hermes Agent plugin: on Slack, lets the agent stay quiet on a thread reply that isn't for it, and tells it each message's ts and whether the message tags or names it"
 readme = "README.md"
 license = { text = "MIT" }

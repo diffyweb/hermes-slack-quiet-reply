@@ -1,5 +1,5 @@
 name: quiet-reply
-version: 0.1.0
+version: 0.1.1
 manifest_version: 2
 description: "Slack: lets the agent stay silent on a thread reply that isn't for it, instead of Hermes's silence-marker warning, and tells it each message's ts and whether the message tags or names it."
 author: Diffyweb
