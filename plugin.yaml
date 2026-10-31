@@ -1,0 +1,11 @@
+name: quiet-reply
+version: 0.1.0
+manifest_version: 2
+description: "Slack: lets the agent stay silent on a thread reply that isn't for it, instead of Hermes's silence-marker warning, and tells it each message's ts and whether the message tags or names it."
+author: Diffyweb
+license: MIT
+homepage: https://github.com/diffyweb/hermes-slack-quiet-reply
+tags: [slack, gateway, silence, reactions]
+requires_hermes: ">=0.22.5"
+provides_hooks:
+  - pre_gateway_dispatch

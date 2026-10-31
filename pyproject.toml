@@ -1,0 +1,15 @@
+[project]
+name = "hermes-slack-quiet-reply"
+version = "0.1.0"
+description = "Hermes Agent plugin: on Slack, lets the agent stay quiet on a thread reply that isn't for it, and tells it each message's ts and whether the message tags or names it"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+# No Python dependencies beyond Hermes itself.
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# importlib mode: the repo root carries the plugin's __init__.py, which must not be collected as a package.
+# tests/hermes runs inside a copy of Hermes (scripts/prove.sh), not here.
+addopts = "-p no:cacheprovider --import-mode=importlib --ignore=tests/hermes"
