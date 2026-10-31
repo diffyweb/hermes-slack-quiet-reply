@@ -21,9 +21,11 @@ for arg in "$@"; do
   case "$arg" in --suite) suite=1;; -*) echo "prove.sh: unknown option $arg" >&2; exit 2;; *) commit=$arg;; esac
 done
 work=$(mktemp -d)
+[ "$suite" = 1 ] || trap 'rm -rf "$work"' EXIT   # --suite keeps its logs
 echo "--> Hermes ${commit:0:12} into $work"
 git -C "$src" archive --format=tar "$commit" | tar -x -C "$work"
 cp "$here/tests/hermes/test_zz_quiet_reply_proof.py" "$work/tests/gateway/"
+cp "$here/tests/hermes/test_zz_review_prompts.py" "$work/tests/gateway/"
 cp "$here/tests/hermes/quiet_reply_everywhere.py" "$work/"
 cd "$work"
 export QUIET_REPLY_DIR="$here" UV_PROJECT_ENVIRONMENT="$work/.venv"
@@ -31,7 +33,7 @@ hermes_pytest() {
   uv run -q --python "${PYTHON_VERSION:-3.14}" --extra slack --group dev --with pyyaml python -m pytest -p no:cacheprovider "$@"
 }
 
-hermes_pytest -q -s tests/gateway/test_zz_quiet_reply_proof.py
+hermes_pytest -q -s tests/gateway/test_zz_quiet_reply_proof.py tests/gateway/test_zz_review_prompts.py
 # Hermes's own tests of the hook, silence, Slack's reply_expected and admission, with the callback in every dispatch.
 hermes_pytest -q -p quiet_reply_everywhere tests/gateway/test_pre_gateway_dispatch.py \
   tests/gateway/test_gateway_silence_tokens.py tests/gateway/test_slack_reply_expected.py \
