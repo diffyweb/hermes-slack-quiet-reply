@@ -42,9 +42,13 @@ failures() {   # the tests that fail in one run of tests/gateway, sorted: Hermes
   # pytest exits 1 when any test fails; that's expected here, so the two lists are compared instead.
   hermes_pytest -q -rfE "$@" tests/gateway 2>&1 | tee "$work/$label.log" | grep -E '^(FAILED|ERROR) ' | sed 's/ - .*//' | sort || true
 }
-label=without; failures > "$work/without.failed"
-label=with; failures -p quiet_reply_everywhere > "$work/with.failed"
-echo "--> tests/gateway: $(tail -n 1 "$work/without.log") without quiet-reply; $(tail -n 1 "$work/with.log") with it"
+finished() {   # a run that stopped before its summary (a collection error, say) proves nothing either way
+  grep -qE '[0-9]+ (passed|failed)' "$work/$label.log" || { echo "the $label run didn't finish: $work/$label.log" >&2; exit 1; }
+}
+label=without; failures > "$work/without.failed"; finished
+label=with; failures -p quiet_reply_everywhere > "$work/with.failed"; finished
+summary() { grep -E '[0-9]+ (passed|failed)' "$work/$1.log" | tail -n 1; }
+echo "--> tests/gateway: $(summary without) without quiet-reply; $(summary with) with it"
 new=$(comm -13 "$work/without.failed" "$work/with.failed")
 if [ -n "$new" ]; then echo "fail only with quiet-reply:"; echo "$new"; exit 1; fi
 echo "no test fails only with quiet-reply ($(wc -l < "$work/without.failed" | tr -d ' ') fail either way: $work/without.failed)"
